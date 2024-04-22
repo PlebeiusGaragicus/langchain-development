@@ -42,7 +42,7 @@ from typing_extensions import TypedDict
 
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 
 
 from langchain_community.chat_models import ChatOllama
@@ -91,6 +91,8 @@ graph = graph_builder.compile()
 
 async def main():
 # def main():
+
+    convo_history = []
     while True:
         cprint("\nUser Question:", Colors.RED, end=" ")
         change_color(Colors.YELLOW)
@@ -107,19 +109,42 @@ async def main():
         if user_input.strip() == "":
             continue
 
+        convo_history.append(HumanMessage(content=user_input))
+        graph_input = {"messages": convo_history}
 
-        graph_input = {"messages": [HumanMessage(content=user_input)]}
-
+        # graph_input = {"messages": [HumanMessage(content=user_input)]}
         config = {"something": "yes, yes, it is!"}
 
-        async for event in graph.astream_events(input=graph_input, config=config, version='v1'):
-            # print(event)
+        print("INVOKE GRAPH WITH <>CONVO HISTORY<>")
+        for msg in convo_history:
+            cput(f"{msg.type}: ", Colors.RED)
+            cput(f"{msg.content}\n", Colors.MAGENTA)
+            reset_color()
+
+        last_chain_ending = ""
+        async for event in graph.astream_events(
+                                input=graph_input,
+                                config=config,
+                                version='v1'
+                            ):
+
+
             if event['event'] == 'on_chat_model_stream':
                 chunk = event['data']['chunk'].content
                 cput(chunk, Colors.GREEN)
 
+            elif event['event'] == 'on_chain_end':
+                cprint(event['event'], Colors.YELLOW)
+                try:
+                    # TODO - this tries to get the penultimate graph output - this will break as my graph changes!
+                    last_chain_ending = event['data']["output"]['chatbot']['messages'][0].content
+                except KeyError:
+                    pass
             else:
                 cprint(event['event'], Colors.YELLOW)
+
+            # print(event)
+        convo_history.append(AIMessage(content=last_chain_ending))
 
 
 
