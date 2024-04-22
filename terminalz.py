@@ -83,9 +83,10 @@ def route_question(state: State, config):
         str: Next node to call
     """
 
-    cprint("--- NODE: route_question() ---", Colors.MAGENTA)
-    convo_history = state["messages"]
-    # question = state["question"]
+    cprint("\n--- NODE: route_question() ---", Colors.MAGENTA)
+    # convo_history = state["messages"][:-1]
+    # question = state["messages"][-1].content
+    messages = '\n'.join(f"{message.type}: {message.content}" for message in state["messages"])
     # print(convo_history)
 
 
@@ -93,23 +94,33 @@ def route_question(state: State, config):
     llm = ChatOllama(model=model, format="json", temperature=0)
 
     prompt = PromptTemplate(
-        template="""You are an expert at routing a user conversations to the next appropriate workflow: \n
-
-        Use 'vectorstore' for questions related to firefighting operations, policies, terminology or knowledge. \n
-        Use 'friendly_chatbot' for all other user questions or replies. \n
-
-        You do not need to be stringent with the keywords in the question related to these topics. \n
-        Give a binary choice 'vectorstore' or 'friendly_chatbot' based on the question. \n
-        Return JSON with a single key 'datasource' and no premable or explaination. \n
-        Conversation history to route: {convo_history}""",
-        input_variables=["convo_history"],
+        template="""You are an expert at routing a user question to the next appropriate workflow:\n
+Use 'vectorstore' for questions related to firefighting operations, policies, terminology or knowledge.\n
+Use 'friendly_chatbot' for all other user questions or replies.\n
+You do not need to be stringent with the keywords in the question related to these topics.\n
+Give a single choice based on the question and context of the conversation.\n
+Return JSON with a single key 'datasource' and no premable or explaination.
+---
+Conversation History:\n
+{messages}
+""",
+        # input_variables=["convo_history", "question"],
+        input_variables=["messages"],
     )
+# Conversation history: {convo_history} \n
+# User question: {question}
+
+    # prompt.pretty_print()
+    # cprint(prompt.pretty_repr().format(convo_history=convo_history, question=question), Colors.CYAN)
+    cprint(prompt.pretty_repr().format(messages=messages), Colors.CYAN)
+    # print(prompt.pretty_repr())
+    # cprint(f"Convo History: {convo_history}", Colors.RED)
+    # cprint(f"Question: {question}", Colors.RED)
 
     question_router = prompt | llm | JsonOutputParser()
 
-    source = question_router.invoke({"convo_history": convo_history}, config=config)
-    # print(source)
-    # print(source['datasource'])
+    # source = question_router.invoke({"convo_history": convo_history, "question": question}, config=config)
+    source = question_router.invoke({"messages": messages}, config=config)
 
     if source['datasource'] == 'vectorstore':
         print("---ROUTE QUESTION TO vectorstore---")
@@ -126,34 +137,52 @@ def route_question(state: State, config):
 
 
 def friendly_chatbot(state: State, config):
-    cprint("--- NODE: friendly_chatbot() ---", Colors.MAGENTA)
+    cprint("\n--- NODE: friendly_chatbot() ---", Colors.MAGENTA)
 
     model="llama3" # TODO - pull the model, temperature, etc from the config!
-    llm = ChatOllama(model=model)
+    llm = ChatOllama(model=model, temperature=0.8)
 
-    user_input = state["messages"][-1].content
+    # user_input = state["messages"][-1].content
+    # convo_history = state["messages"][:-1]
+    # user_input = state["messages"][-1].content
+    # messages = state["messages"]
 
+    # format the message history for the prompt
+    messages = '\n'.join(f"{message.type}: {message.content}" for message in state["messages"])
+
+
+            # Keep replies short, don't use proper grammar or punctuation.\n
     prompt = PromptTemplate(
             template="""You are the human's friend.\n
-            Keep dialog short, don't use proper grammar or punctuation.\n
-            Your friend said: {user_input}.\n""",
-            input_variables=["user_input"],
+Keep the following conversation going.\n
+Keep replies short.\n
+---\n
+Conversation History: \n
+{messages}""",
+            input_variables=["messages"],
         )
+            # Conversation history: {messages}\n
+            # Your friend said: {user_input}""",
+            # input_variables=["user_input", "messages"],
+        
+    cprint(prompt.pretty_repr().format(messages=messages), Colors.CYAN)
 
     chain = prompt | llm
 
-    return {"messages": [chain.invoke({"user_input": user_input}, config=config)]}
+    # return {"messages": [chain.invoke({"user_input": user_input, "messages": convo_history}, config=config)]}
+    return {"messages": [chain.invoke({"messages": messages}, config=config)]}
         # state["messages"], config=config)]}
 
 
 def vectorstore(state: State, config):
-    cprint("--- NODE: vectorstore() ---", Colors.MAGENTA)
+    cprint("\n--- NODE: vectorstore() ---", Colors.MAGENTA)
 
     return {"messages": [AIMessage(content="THE DATABASE IS NOT YET IMPLEMENTED!")]}
 
 
 def bad_route(state: State, config):
-    cprint("--- NODE: bad_route() ---", Colors.MAGENTA)
+    cprint("\n--- NODE: bad_route() ---", Colors.MAGENTA)
+    cprint("### THIS SHOULD NEVER HAPPEN!!! ###", Colors.RED)
 
     return {"messages": [AIMessage(content="I'm sorry, I don't understand that question.")]}
 
@@ -176,8 +205,6 @@ graph_builder.set_conditional_entry_point(
                 }
             )
 
-# graph_builder.set_entry_point("friendly_chatbot")
-# graph_builder.set_finish_point("friendly_chatbot")
 
 graph = graph_builder.compile()
 
@@ -209,10 +236,17 @@ async def main():
 
     convo_history = []
     while True:
-        cprint("\nUser Question:", Colors.RED, end=" ")
+        if len(convo_history) > 0:
+            cprint("\nConversation History:", Colors.RED)
+            for message in convo_history:
+                cput(f"{message.type}: ", Colors.RED)
+                cput(f"{message.content}\n", Colors.MAGENTA)
+
+        # cprint("\nUser Question:", Colors.RED, end=" ")
         change_color(Colors.YELLOW)
         try:
-            user_input = input(">> ")
+            # user_input = input(">> ")
+            user_input = input("User: ")
         except KeyboardInterrupt:
             cprint("\nGoodbye!", Colors.RED)
             break
@@ -245,20 +279,26 @@ async def main():
 
 
             if event['event'] == 'on_chat_model_stream':
-                if event['data']['chunk'].content.strip() == "":
-                    continue
+                # print(event)
+                # NOTE: I can't do this or it will skip single spaces in the bot's output!!
+                # if event['data']['chunk'].content.strip() == "":
+                #     continue
                 chunk = event['data']['chunk'].content
                 cput(chunk, Colors.GREEN)
 
             elif event['event'] == 'on_chain_end':
-                cprint(event['event'], Colors.YELLOW)
+                # cprint(event['event'], Colors.YELLOW)
                 try:
                     # TODO - this tries to get the penultimate graph output - this will break as my graph changes!
-                    last_chain_ending = event['data']["output"]['friendly_chatbot']['messages'][0].content
+                    # last_chain_ending = event['data']["output"][event['name']]['messages'][0].content
+                    last_chain_ending = event['data']["output"]['messages'][0].content
                 except (KeyError, TypeError):
+                    cprint("ERROR", Colors.RED)
                     pass
             else:
-                cprint(event['event'], Colors.YELLOW)
+                # cprint(event['event'], Colors.YELLOW)
+                # print(event)
+                pass
 
             # print(event)
         convo_history.append(AIMessage(content=last_chain_ending))
