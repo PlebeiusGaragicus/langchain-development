@@ -1,3 +1,4 @@
+import uuid
 import dotenv
 dotenv.load_dotenv()
 
@@ -312,12 +313,15 @@ graph = graph_builder.compile()
 import enquiries
 
 
-model_options = ['llama:8b', 'mistral:7b', 'dolphin-mistral:latest', 'gemma:2b', 'OpenAI']
+model_options = ['llama3:latest', 'mistral:7b', 'dolphin-mistral:latest', 'gemma:2b', 'OpenAI']
 chat_model = enquiries.choose(f'{color(Colors.RED)}Select chatbot model{reset_color()}', model_options)
-
 
 async def main():
 # def main():
+
+
+    session_id = str(uuid.uuid4())
+    cprint(f"Session ID: {session_id}", Colors.RED)
 
     convo_history = []
     while True:
@@ -341,14 +345,23 @@ async def main():
             cprint("Goodbye!", Colors.RED)
             break
         if user_input.strip() == "":
+            session_id = str(uuid.uuid4())
+            print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n>> NEW CONVERSATION.....\n")
+            cprint(f"Session ID: {session_id}", Colors.RED)
+            convo_history = []
             continue
 
         convo_history.append(HumanMessage(content=user_input))
         graph_input = {"messages": convo_history}
 
         config = {
-            "chat_model": chat_model
-        }
+            "chat_model": chat_model,
+            "metadata": {}, # TODO - doesn't work yet... maybe it's how I'm calling my graph?
+                # {
+                #     "conversation_id": session_id
+                # }
+            }
+
 
         print("INVOKE GRAPH WITH <>CONVO HISTORY<>")
         for msg in convo_history:
