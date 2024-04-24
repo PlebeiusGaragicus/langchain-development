@@ -1,3 +1,4 @@
 pydantic==1.9
 streamlit
 streamlit_pydantic
+stqdm

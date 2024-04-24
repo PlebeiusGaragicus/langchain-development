@@ -48,7 +48,7 @@ try:
     st.json(the_model.json())
 except FileNotFoundError:
     st.error("No settings file found")
-    settings = None
+    # settings = ExampleModel()
     the_model = ExampleModel()
 
 
