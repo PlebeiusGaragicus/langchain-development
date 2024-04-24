@@ -36,7 +36,7 @@ def change_color(color: Colors):
 
 
 
-OPENAI_ROUTING = True
+OPENAI_ROUTING = False
 OLLAMA_CHAT = True
 
 
@@ -168,7 +168,7 @@ def route_Ollama(state: State, config):
     # model = "mistral:7b"
     # model = "gemma:2b" # FUCKING SUCKS FOR ROUTING
     model = "gemma:7b" # FUCKING SUCKS FOR ROUTING
-    llm = ChatOllama(model=model, format="json", temperature=0)
+    llm = ChatOllama(model=model, format="json", temperature=0, num_predict=20)
 
     prompt = PromptTemplate(
         template="""You are an expert at routing a user question to the next appropriate workflow:
