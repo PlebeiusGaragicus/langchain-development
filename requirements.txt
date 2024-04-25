@@ -1,4 +1,18 @@
-pydantic==1.9
+python-dotenv
+# pydantic==1.9
+pydantic
+
 streamlit
 streamlit_pydantic
 stqdm
+
+langchain
+langchain_community
+langgraph
+langchain_openai
+tavily-python
+bs4
+# langchainhub
+chromadb
+
+enquiries

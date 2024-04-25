@@ -2,6 +2,16 @@ import uuid
 import dotenv
 dotenv.load_dotenv()
 
+# TODO - review the CRAG code: https://github.com/PlebeiusGaragicus/CRAG
+
+# INSPIRATION:
+# https://github.com/mistralai/cookbook/blob/main/third_party/langchain/corrective_rag_mistral.ipynb
+# https://github.com/mistralai/cookbook/tree/main/third_party/langchain
+# https://www.youtube.com/watch?v=eOo4GfHj3ZE
+# https://www.youtube.com/watch?v=sgnrL7yo1TE
+# https://blog.langchain.dev/query-construction/
+
+
 class Colors():
     BLACK = 0
     RED = 1
