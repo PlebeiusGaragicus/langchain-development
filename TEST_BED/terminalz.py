@@ -46,7 +46,7 @@ def change_color(color: Colors):
 
 
 
-OPENAI_ROUTING = False
+OPENAI_ROUTING = True
 OLLAMA_CHAT = True
 
 
@@ -118,7 +118,7 @@ def route_OpenAI(state: State, config):
     # messages = '\n'.join(f"{message.type}: {message.content}" for message in state["messages"])
 
 
-    llm = ChatOpenAI(model="gpt-3.5-turbo-0125", temperature=0)
+    llm = ChatOpenAI(model="gpt-3.5-turbo-0125", temperature=0, streaming=True)
     structured_llm_router = llm.with_structured_output(RouteQuery)
 
 
@@ -144,6 +144,7 @@ User question: {question}"""
 
     question_router = prompt | structured_llm_router
     source = question_router.invoke({"question": question}, config=config)
+    cprint(source.datasource, Colors.GREEN)
     if source.datasource == 'vectorstore':
         print("---ROUTE QUESTION TO vectorstore---")
         return "vectorstore"
@@ -209,13 +210,13 @@ User question: {question}
     # source = question_router.invoke({"messages": messages}, config=config)
     source = question_router.invoke({"question": question}, config=config)
     if source['datasource'] == 'vectorstore':
-        print("---ROUTE QUESTION TO vectorstore---")
+        print(">>> ROUTE QUESTION TO vectorstore")
         return "vectorstore"
     elif source['datasource'] == 'friendly_chatbot':
-        print("---ROUTE QUESTION TO friendly chatbot---")
+        print(">>> ROUTE QUESTION TO friendly chatbot")
         return "friendly_chatbot"
     else:
-        print("---ROUTING ERROR---")
+        print(">>> ROUTING ERROR")
         return "bad_route"
 
 
@@ -386,6 +387,7 @@ async def main():
                                 version='v1'
                             ):
 
+            cprint(str(event), Colors.YELLOW)
 
             if event['event'] == 'on_chat_model_stream':
                 # print(event)
@@ -402,10 +404,11 @@ async def main():
                     # last_chain_ending = event['data']["output"][event['name']]['messages'][0].content
                     last_chain_ending = event['data']["output"]['messages'][0].content
                 except (KeyError, TypeError):
-                    cprint("ERROR", Colors.RED)
+                    # cprint("ERROR", Colors.RED)
                     pass
             else:
-                # cprint(event['event'], Colors.YELLOW)
+                cprint(event['event'], Colors.YELLOW)
+                # cprint(str(event), Colors.YELLOW)
                 # print(event)
                 pass
 
